@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, sys, json, zipfile, io, shutil, uuid, time, threading, webbrowser, re, subprocess, urllib.request, tarfile, tempfile, html as htmlmod, base64, struct, ssl
+import os, sys, json, zipfile, io, shutil, uuid, time, threading, webbrowser, re, subprocess, urllib.request, tarfile, tempfile, html as htmlmod, base64, struct, ssl, hashlib
 from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote
 
@@ -444,6 +444,23 @@ def write_metadata(build_dir, task_id, app_name, version, file_name):
         with open(gradle_path, "w", encoding="utf-8") as f:
             f.write(content)
 
+def build_package_name(app_name):
+    """由应用名生成稳定且唯一的 applicationId。
+
+    中文名(或纯符号名)清洗掉非 ASCII 字母数字后会变成空串, 旧逻辑统一退化成
+    com.app2apk.app —— 多个应用撞同一个包名, 装第二个时要么覆盖第一个,
+    要么因签名不同直接报"签名冲突"。这里追加应用名哈希后缀保证唯一。
+    后缀由应用名确定性推导: 同名应用重复打包仍是同一个包名, 可直接覆盖升级。
+    """
+    name = (app_name or "").strip() or "app"
+    base = re.sub(r"[^a-zA-Z0-9]", "", name)
+    if not base:
+        base = "app"
+    if base[0].isdigit():
+        base = "app" + base
+    digest = hashlib.md5(name.encode("utf-8")).hexdigest()[:6]
+    return "com.app2apk.%s_%s" % (base.lower(), digest)
+
 def update_manifest(build_dir, permissions, app_name):
     manifest_path = os.path.join(build_dir, "app", "src", "main", "AndroidManifest.xml")
     if os.path.isfile(manifest_path):
@@ -455,13 +472,7 @@ def update_manifest(build_dir, permissions, app_name):
         content = content.replace("</manifest>", perm_xml + "\n\n</manifest>")
         with open(manifest_path, "w", encoding="utf-8") as f:
             f.write(content)
-    pkg_suffix = re.sub(r"[^a-zA-Z0-9]", "", app_name or "app")
-    if not pkg_suffix or pkg_suffix[0].isdigit():
-        if pkg_suffix:
-            pkg_suffix = "app_" + pkg_suffix
-        else:
-            pkg_suffix = "app"
-    pkg_name = "com.app2apk." + pkg_suffix.lower()
+    pkg_name = build_package_name(app_name)
     gradle_path = os.path.join(build_dir, "app", "build.gradle")
     if os.path.isfile(gradle_path):
         with open(gradle_path, "r", encoding="utf-8") as f:

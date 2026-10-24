@@ -272,6 +272,17 @@ pyinstaller APP2APK-Builder.spec
 
 ## 技术细节
 
+### 包名与签名
+
+**包名**：由应用名自动推导，格式为 `com.app2apk.<清洗后的应用名>_<6位哈希>`。
+
+例如 `记账本` → `com.app2apk.app_f6791a`，`Todo` → `com.app2apk.todo_bc97e1`。
+后缀哈希取自应用名，因此**同名应用重复打包得到相同包名**（可直接覆盖升级），**不同名应用包名互不相同**（可并存安装）。
+
+**签名**：使用模板内置的固定密钥 `android-template/keystore/app2apk.jks`（alias `app2apk`，口令 `app2apk`，RSA 2048，有效期至 2056 年），不再依赖各机器自动生成的 `~/.android/debug.keystore`，因此任何电脑打出来的 APK 证书完全一致，可稳定覆盖升级。
+
+> ⚠️ 该密钥随仓库公开，仅适用于个人自用/内部测试。若需上架应用商店或分发给他人的正式应用，请替换为自己的密钥：覆盖 `android-template/keystore/app2apk.jks`，并修改 `android-template/app/build.gradle` 中 `signingConfigs.app2apk` 的路径、口令与 alias。
+
 ### 工具链自动发现
 
 服务器按以下优先级查找编译工具：

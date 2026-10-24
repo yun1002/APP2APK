@@ -14,9 +14,24 @@ android {
         versionName "1.0.0"
     }
 
+    // —— 固定签名配置 ——
+    // 不再使用 AGP 默认的 ~/.android/debug.keystore（每台机器/每次重装都不同，
+    // 会导致同一应用无法覆盖升级，或与其他应用撞签名）。
+    // 密钥随模板一起分发，保证任何机器打出来的 APK 证书一致。
+    // 如需换成自己的密钥，替换 keystore/app2apk.jks 并修改下面四项即可。
+    signingConfigs {
+        app2apk {
+            storeFile rootProject.file('keystore/app2apk.jks')
+            storePassword 'app2apk'
+            keyAlias 'app2apk'
+            keyPassword 'app2apk'
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
+            signingConfig signingConfigs.app2apk
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
