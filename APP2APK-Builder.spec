@@ -10,11 +10,8 @@ a = Analysis(
         ('index.html', '.'),
         ('android-template', 'android-template'),
     ],
-    hiddenimports=[
-        'flask',
-        'flask_cors',
-        'flask_httpauth',
-    ],
+    # server.py 仅依赖标准库（http.server），无需额外 hiddenimports
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
