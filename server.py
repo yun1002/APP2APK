@@ -4,6 +4,25 @@ from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, quote
 
 APP2APK_VERSION = "2.3.0"
+
+# —— 无控制台(windowed)模式兜底 ——
+# 用 --noconsole 打包时 sys.stdout / sys.stderr 为 None, 直接 print 会抛 AttributeError,
+# 这里统一重定向到空设备, 保证在无黑窗模式下运行稳定。
+if sys.stdout is None or sys.stderr is None:
+    try:
+        _null_stream = open(os.devnull, "w", encoding="utf-8", errors="ignore")
+    except Exception:
+        _null_stream = None
+    if sys.stdout is None:
+        sys.stdout = _null_stream
+    if sys.stderr is None:
+        sys.stderr = _null_stream
+
+# Windows 下子进程(如 gradle.bat)在无控制台父进程里会自己弹出黑窗, 统一禁止
+_NO_WINDOW_FLAGS = {}
+if os.name == "nt":
+    _NO_WINDOW_FLAGS["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
 if getattr(sys, 'frozen', False):
     EXE_DIR = os.path.dirname(sys.executable)
     BASE_DIR = getattr(sys, '_MEIPASS', EXE_DIR)
@@ -518,7 +537,7 @@ def build_apk(task_id, build_dir, app_name, version, code_content, file_name, pe
             process = subprocess.Popen(
                 [gradle_bin, "assembleDebug", "--no-daemon", "--console=plain"],
                 cwd=build_dir, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, bufsize=1
+                text=True, bufsize=1, **_NO_WINDOW_FLAGS
             )
             logs = []
             try:
